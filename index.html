@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>vue-demo</title>
+	<style>
+		#app{
+			width: 500px;
+			margin: auto;
+		}
+		ul,li{
+			margin: 0;
+			padding: 0;
+			list-style: none;
+		}
+		table tr th{
+			text-align: left;
+		}
+		.new-line{
+			margin: 20px 0;
+		}
+
+		.p-list-item{
+			transition: all .5s;
+			border-bottom: 1px solid #ddd;
+		}
+		.p-list-move {
+		  transition: transform .5s .2s;
+		}
+		.p-list-enter{
+			opacity: 0;
+			transform: translateX(30px);
+		}
+		.p-list-leave-active{
+			opacity: 0;
+			position: absolute;
+		}
+
+		.item-name,.item-tel,.item-action{
+			display: inline-block;
+			padding: 3px 5px;
+		}
+		.item-name{
+			width: 80px;
+		}
+		.item-tel{
+			width: 200px;
+		}
+		.loading{
+			text-align: center;
+			margin: 30% auto;
+		}
+	</style>
+</head>
+<body>
+<section id="app"></section>
+<script src="node_modules/vue/dist/vue.js"></script>
+<script src="node_modules/vuex/dist/vuex.js"></script>
+<script>
+	// 模拟网络延迟
+	var fetch = function (fn) {
+		var time = Math.random() * 3 * 1000;
+		console.log(time)
+		setTimeout(fn, time);
+	}
+	// 模拟数据api接口
+	var post = {
+		data:[{
+		    	id: 0,
+		    	name: '0',
+		    	tel: '2139913'
+		    },{
+		    	id: 1,
+		    	name: '1',
+		    	tel: '21313'
+		    },{
+		    	id: 2,
+		    	name: '2',
+		    	tel: '21321321'
+		    },{
+		    	id: 3,
+		    	name: '3',
+		    	tel: '1232131231'
+		    },{
+		    	id: 4,
+		    	name: '4',
+		    	tel: '4354543'
+		    },{
+		    	id: 5,
+		    	name: '5',
+		    	tel: '34543633'
+		    },{
+		    	id: 6,
+		    	name: '6',
+		    	tel: '89703453'
+		    },{
+		    	id: 7,
+		    	name: '7',
+		    	tel: '2908320982'
+		    }]
+	    ,
+		get: function () {
+			return this.data
+		},
+		add: function (obj) {
+			var newItem = Object.assign({id: this.data.length}, obj)
+			this.data.push(newItem)
+			return newItem
+		},
+		remove: function (id) {
+			if(Math.random() * 10 >3.3){
+				return this.data.splice(id, 1)
+			}else{
+				return false
+			}
+		}
+	};
+
+	// store 仓库
+	var store = new Vuex.Store({
+	  state: {
+	    list: []
+	  },
+	  mutations: {
+	  	init (state, data) {
+	  		console.info(data)
+	  		state.list = data.list
+	  	},
+	  	decrement (state, data){
+	  		state.list.splice(data.index, 1)
+	  	},
+	    increment (state, data) {
+	    	state.list.push(data)
+	    },
+	  }
+	});
+
+	// 创建 vue 实例
+	var vm = new Vue({
+		el: '#app',
+		store,
+		data: {								// 声明数据模型
+			newData: {						// 新建数据对象
+				name: '',
+				tel: ''
+			},
+			headList: {						// 数据列表表头
+		  		name: '姓名',
+		  		tel: '电话',
+		  		action: '操作'
+		  	},
+			list: [],						// 数据列表
+			actionRemvoe: false,			// 删除操作状态
+			actionAdd: false				// 添加操作状态
+		},
+		template: `
+		<div id="app">
+			<div class="new-line">
+				<label>{{headList.name}}<input type="text" v-model="newData.name"></label>
+				<label>{{headList.tel}}<input type="text" v-model="newData.tel"></label>
+				<button v-on:click="add" :disabled="actionAdd">添加</button>
+			</div>
+			<div class="p-list-item">
+				<span class="item-name">{{headList.name}}</span>
+				<span class="item-tel">{{headList.tel}}</span>
+				<span class="item-action">{{headList.action}}</span>
+			</div>
+			<transition-group name="p-list" tag="ul">
+				<li class="p-list-item" v-for="(item, index) in list" v-bind:key="item">
+					<span class="item-name">{{item.name}}</span>
+					<span class="item-tel">{{item.tel}}</span>
+					<span class="item-action"><button v-on:click="remove(index, item)" :disabled="actionRemvoe">{{item.removeTitle || "删除"}}</button></span>
+				</li>
+			</transition-group>
+			<p class="loading" v-if="!list.length">loading……</p>
+		</div>
+		`,
+		methods: {							// 用户操作事件
+			add: function(){
+				if(!this.newData.name)
+					return alert('请输入'+ this.headList.name)
+				if(!this.newData.tel)
+					return alert('请输入'+ this.headList.tel)
+
+				this.actionAdd = true;
+				fetch(() => {
+					var resData = post.add({
+						name: this.newData.name,
+						tel: this.newData.tel
+					})
+					if(resData){
+						store.commit('increment', resData);
+						this.newData.name = '';
+						this.newData.tel = '';
+						this.actionAdd = false;
+					}
+				})
+			},
+			remove: function(index, item){
+				item.removeTitle = '删除中…';
+				if(confirm('是否删除此数据？'))
+					this.actionRemvoe = true;
+					fetch(() => {
+						var resData = post.remove(index);
+						if(resData){
+							store.commit('decrement', {
+								index: index
+							})
+						}else{
+							alert('操作失败，请稍后重试！')
+						}
+						item.removeTitle = '';
+						this.actionRemvoe = false;
+					})
+			}
+		},
+
+		// 生命周期钩子
+		// 初始化数据
+		created: function () {
+			fetch(() => {
+				var data = post.get();
+				if(data){
+					store.commit('init', {
+						list: data.concat()
+					})
+					this.list = data
+				}
+			})
+		}
+	})
+</script>
+</body>
+</html>
